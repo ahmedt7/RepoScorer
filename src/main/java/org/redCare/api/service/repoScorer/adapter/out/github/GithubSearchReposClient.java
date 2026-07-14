@@ -12,7 +12,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 @Validated
 @FeignClient(
         name = "GithubSearchReposClient",
-        url = "${github.api.baseUrl}/"
+        url = "${github.api.baseUrl}/",
+        configuration = GenericFeignConfig.class
 )
 @CircuitBreaker(name = "GambitPaymentOptionClientCB")
 public interface GithubSearchReposClient extends SearchApi{

@@ -1,19 +1,7 @@
-package org.redCare.api.service.repoScorer.adapter.out.github;
+package org.redCare.api.service.repoScorer.configuration.error;
 
 import static org.springframework.http.HttpHeaders.RETRY_AFTER;
 
-import com.condor.api.service.core.error.client.BadRequestException;
-import com.condor.api.service.core.error.client.ConflictException;
-import com.condor.api.service.core.error.client.ForbiddenException;
-import com.condor.api.service.core.error.client.GenericClientErrorException;
-import com.condor.api.service.core.error.client.NotFoundException;
-import com.condor.api.service.core.error.server.BadGatewayException;
-import com.condor.api.service.core.error.server.GatewayTimeoutException;
-import com.condor.api.service.core.error.server.InternalServerErrorException;
-import com.condor.api.service.core.error.server.NotImplementedException;
-import com.condor.api.service.core.error.server.ServiceUnavailableException;
-import com.condor.api.service.core.model.BasicError;
-import com.condor.api.service.core.model.DetailedError;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.Response;
@@ -23,9 +11,19 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.redCare.api.service.repoScorer.configuration.error.client.BadRequestException;
+import org.redCare.api.service.repoScorer.configuration.error.client.ForbiddenException;
+import org.redCare.api.service.repoScorer.configuration.error.client.GenericClientErrorException;
+import org.redCare.api.service.repoScorer.configuration.error.client.NotFoundException;
+import org.redCare.api.service.repoScorer.configuration.error.model.BasicError;
+import org.redCare.api.service.repoScorer.configuration.error.server.BadGatewayException;
+import org.redCare.api.service.repoScorer.configuration.error.server.GatewayTimeoutException;
+import org.redCare.api.service.repoScorer.configuration.error.server.InternalServerErrorException;
+import org.redCare.api.service.repoScorer.configuration.error.server.NotImplementedException;
+import org.redCare.api.service.repoScorer.configuration.error.server.ServiceUnavailableException;
 
 @Slf4j
-public class GenericFeignErrorDecoder implements ErrorDecoder {
+public class GenericFeignErrorDecoder implements ErrorDecoder, FeignResponseFunctions {
   private final ObjectMapper mapper =
       new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
@@ -33,14 +31,9 @@ public class GenericFeignErrorDecoder implements ErrorDecoder {
   public Exception decode(String methodKey, Response response) {
     switch (response.status()) {
       case 400 -> throw new BadRequestException(getErrorMessage(response));
-      case 403 -> throw new ForbiddenException();
+      case 403 -> throw new ForbiddenException(getErrorMessage(response));
       case 404 -> throw new NotFoundException();
       case 406 -> throw new InternalServerErrorException(getErrorMessage(response));
-      case 409 -> {
-        DetailedError detailedError = initDetailedError(response);
-        throw new ConflictException(
-            detailedError.getMessage(), detailedError.getPath(), detailedError.getErrors());
-      }
       case 501 -> throw new NotImplementedException(getErrorMessage(response));
       case 500, 502 -> throw new BadGatewayException();
       case 503 ->
@@ -79,22 +72,6 @@ public class GenericFeignErrorDecoder implements ErrorDecoder {
     return (basicErrors != null)
         ? basicErrors
         : List.of(new BasicError(defaultErrorMessage(response)));
-  }
-
-  private DetailedError initDetailedError(Response response) {
-    DetailedError detailedError = null;
-    if (response.body() != null) {
-      String bodyString = null;
-      try (InputStream bodyInputStream = response.body().asInputStream()) {
-        bodyString = new String(bodyInputStream.readAllBytes(), StandardCharsets.UTF_8);
-        detailedError = mapper.readValue(bodyString, DetailedError.class);
-      } catch (IOException e) {
-        log.warn("Unable to deserialize: {}", bodyString, e);
-      }
-    }
-    return (detailedError != null)
-        ? detailedError
-        : new DetailedError(defaultErrorMessage(response));
   }
 
   private List<BasicError> mapBasicErrors(String bodyString) throws IOException {

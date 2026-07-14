@@ -12,6 +12,13 @@ import org.redCare.api.service.repoScorer.application.model.repoScorer.ScoredRep
 import org.redCare.api.service.repoScorer.application.model.repoScorer.SearchRepositoriesResponse;
 import org.springframework.stereotype.Component;
 
+/**
+ * Converts GitHub repository search results into scored repository responses.
+ *
+ * <p>The score combines normalized logarithmic stars, normalized logarithmic
+ * forks, and update recency. Scores are rounded to two decimal places and
+ * returned in descending popularity order.</p>
+ */
 @Component
 @RequiredArgsConstructor
 public class RepositoryScoringDecorator {
@@ -22,6 +29,13 @@ public class RepositoryScoringDecorator {
 
     private final Clock clock;
 
+    /**
+     * Decorates a GitHub search response with popularity scores.
+     *
+     * @param searchRepositoriesResponse GitHub search response; {@code null}
+     *                                   responses and item lists are treated as empty
+     * @return scored repositories ordered by descending popularity score
+     */
     public List<ScoredRepository> decorate(SearchRepositoriesResponse searchRepositoriesResponse) {
         List<Repository> repositories = Optional.ofNullable(searchRepositoriesResponse)
                 .map(SearchRepositoriesResponse::getItems)

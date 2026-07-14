@@ -28,6 +28,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+/**
+ * Builds Spring Security authentication from upstream API-client role headers.
+ *
+ * <p>The filter expects roles in {@value #API_CLIENT_ROLES_HEADER}, separated by
+ * commas or spaces, and maps each value to a {@code ROLE_} authority. The health
+ * endpoint bypasses authentication population.</p>
+ */
 @Slf4j
 public class SecurityHeadersFilter extends OncePerRequestFilter {
 

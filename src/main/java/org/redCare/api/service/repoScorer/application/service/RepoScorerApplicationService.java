@@ -11,6 +11,13 @@ import org.redCare.api.service.repoScorer.application.useCase.SearchGithubReposQ
 import org.redCare.api.service.repoScorer.application.useCase.SearchGithubReposUseCase;
 import org.springframework.stereotype.Service;
 
+/**
+ * Coordinates repository search and scoring for inbound API requests.
+ *
+ * <p>This service owns GitHub query construction, delegates the actual search
+ * to the use case, and maps GitHub's response into the API's scored response
+ * model.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -18,6 +25,16 @@ public class RepoScorerApplicationService {
     private final SearchGithubReposUseCase searchGithubReposUseCase;
     private final RepositoryScoringDecorator repositoryScoringDecorator;
 
+    /**
+     * Searches repositories created after a given date and enriches them with a
+     * popularity score.
+     *
+     * @param createdAfter inclusive lower bound for repository creation date
+     * @param language repository language qualifier; complex values are quoted
+     * @param perPage number of results requested per page
+     * @param page requested result page
+     * @return scored repositories and the GitHub total count
+     */
     public ScoredRepositoriesResponse searchRepositories(LocalDate createdAfter, String language, Integer perPage, Integer page) {
         SearchRepositoriesResponse searchRepositoriesResponse = searchGithubReposUseCase.handle(
                 new SearchGithubReposQuery(buildSearchQuery(createdAfter, language), "updated", "desc", perPage, page)
