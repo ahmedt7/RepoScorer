@@ -1,0 +1,50 @@
+package org.redCare.api.service.repoScorer.application.service;
+
+import java.time.LocalDate;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.redCare.api.service.repoScorer.application.model.repoScorer.ScoredRepositoriesResponse;
+import org.redCare.api.service.repoScorer.application.model.repoScorer.ScoredRepository;
+import org.redCare.api.service.repoScorer.application.model.repoScorer.SearchRepositoriesResponse;
+import org.redCare.api.service.repoScorer.application.useCase.SearchGithubReposQuery;
+import org.redCare.api.service.repoScorer.application.useCase.SearchGithubReposUseCase;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class RepoScorerApplicationService {
+    private final SearchGithubReposUseCase searchGithubReposUseCase;
+    private final RepositoryScoringDecorator repositoryScoringDecorator;
+
+    public ScoredRepositoriesResponse searchRepositories(LocalDate createdAfter, String language, Integer perPage, Integer page) {
+        SearchRepositoriesResponse searchRepositoriesResponse = searchGithubReposUseCase.handle(
+                new SearchGithubReposQuery(buildSearchQuery(createdAfter, language), "updated", "desc", perPage, page)
+        );
+        List<ScoredRepository> scoredRepositories = repositoryScoringDecorator.decorate(searchRepositoriesResponse);
+
+        return new ScoredRepositoriesResponse()
+                .totalCount(toLong(searchRepositoriesResponse))
+                .repositories(scoredRepositories);
+    }
+
+    private String buildSearchQuery(LocalDate createdAfter, String language) {
+        return "created:>=%s language:%s".formatted(createdAfter, formatLanguageQualifier(language));
+    }
+
+    private String formatLanguageQualifier(String language) {
+        String trimmedLanguage = language.trim();
+        if (trimmedLanguage.matches("[A-Za-z0-9#+.-]+")) {
+            return trimmedLanguage;
+        }
+        return "\"%s\"".formatted(trimmedLanguage.replace("\\", "\\\\").replace("\"", "\\\""));
+    }
+
+    private Long toLong(SearchRepositoriesResponse searchRepositoriesResponse) {
+        if (searchRepositoriesResponse == null || searchRepositoriesResponse.getTotalCount() == null) {
+            return 0L;
+        }
+        return searchRepositoriesResponse.getTotalCount().longValue();
+    }
+}

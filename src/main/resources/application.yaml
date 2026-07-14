@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: RepoScorer
+  profiles:
+    active: default
+  main:
+    banner-mode: off
+  threads:
+    virtual:
+      enabled: true
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            loggerLevel: full
+          GithubSearchReposClient:
+            connectTimeout: 1000
+            readTimeout: 5000
+github:
+  api:
+    baseUrl: https://api.github.com
