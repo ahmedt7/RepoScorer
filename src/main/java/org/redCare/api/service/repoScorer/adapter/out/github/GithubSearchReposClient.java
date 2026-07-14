@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
         url = "${github.api.baseUrl}/",
         configuration = GenericFeignConfig.class
 )
-@CircuitBreaker(name = "GambitPaymentOptionClientCB")
+@CircuitBreaker(name = "GithubSearchReposClientCB")
 public interface GithubSearchReposClient extends SearchApi{
 
     @GetMapping("/search/repositories")
