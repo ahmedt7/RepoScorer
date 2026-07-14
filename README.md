@@ -7,7 +7,7 @@ repository with a score based on stars, forks, and update recency.
 
 ## Stack
 
-- Java 17
+- Java 25
 - Spring Boot 3.5
 - Spring Cloud OpenFeign
 - Resilience4j
@@ -75,6 +75,7 @@ current response. Recency is calculated as:
 The final score is scaled to `0..100`, rounded to two decimals, and results are
 returned in descending score order.
 
+
 ## Configuration
 
 GitHub base URL:
@@ -119,11 +120,45 @@ JaCoCo runs during `mvn verify` and enforces the configured line coverage gate.
 Generated OpenAPI classes, the Spring Boot launcher, and most error support
 classes are excluded from the report. The Feign error decoder remains included.
 
-Coverage report:
+Generate the coverage report and run the coverage gate:
+
+```bash
+mvn verify
+```
+
+Open the HTML coverage report in a browser:
 
 ```text
 target/site/jacoco/index.html
 ```
+
+For a quick machine-readable summary, inspect:
+
+```text
+target/site/jacoco/jacoco.csv
+```
+
+The HTML report shows package and class-level coverage, including missed lines
+and branches. The CSV report is useful for scripts or quick terminal checks.
+
+## JavaDoc
+
+JavaDoc comments are available on the main classes and package-level
+`package-info.java` files. Generate the JavaDoc site with:
+
+```bash
+mvn javadoc:javadoc
+```
+
+Open the generated JavaDoc in a browser:
+
+```text
+target/site/apidocs/index.html
+```
+
+Package descriptions from `package-info.java` appear in the generated JavaDoc
+package pages. Class and method comments appear on their corresponding class
+pages.
 
 ## WireMock Integration Test
 

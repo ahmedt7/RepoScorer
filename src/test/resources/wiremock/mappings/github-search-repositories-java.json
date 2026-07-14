@@ -1,0 +1,30 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/search/repositories",
+    "queryParameters": {
+      "q": {
+        "equalTo": "created:>=2026-01-01 language:Java"
+      },
+      "sort": {
+        "equalTo": "updated"
+      },
+      "order": {
+        "equalTo": "desc"
+      },
+      "per_page": {
+        "equalTo": "2"
+      },
+      "page": {
+        "equalTo": "1"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyFileName": "github/search-repositories-java.json"
+  }
+}
