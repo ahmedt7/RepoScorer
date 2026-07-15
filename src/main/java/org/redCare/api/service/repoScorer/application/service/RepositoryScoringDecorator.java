@@ -1,8 +1,6 @@
 package org.redCare.api.service.repoScorer.application.service;
 
 import java.time.Clock;
-import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -10,6 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.redCare.api.service.repoScorer.application.model.repoScorer.Repository;
 import org.redCare.api.service.repoScorer.application.model.repoScorer.ScoredRepository;
 import org.redCare.api.service.repoScorer.application.model.repoScorer.SearchRepositoriesResponse;
+import org.redCare.api.service.repoScorer.configuration.RepoScorerApplicationProperties;
+import org.redCare.api.service.repoScorer.domain.model.RepositoryPopularityScorer;
+import org.redCare.api.service.repoScorer.domain.model.RepositoryScoringWeights;
 import org.springframework.stereotype.Component;
 
 /**
@@ -22,10 +23,12 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class RepositoryScoringDecorator {
-    private static final double STAR_WEIGHT = 0.50;
-    private static final double FORK_WEIGHT = 0.30;
-    private static final double RECENCY_WEIGHT = 0.20;
-    private static final int SCORE_SCALE = 100;
+    private final RepoScorerApplicationProperties properties;
+    private static final Comparator<ScoredRepository> POPULARITY_ORDER =
+            Comparator.comparing(ScoredRepository::getPopularityScore, Comparator.reverseOrder())
+                    .thenComparing(ScoredRepository::getStars, Comparator.reverseOrder())
+                    .thenComparing(ScoredRepository::getForks, Comparator.reverseOrder())
+                    .thenComparing(ScoredRepository::getId, Comparator.nullsLast(Comparator.naturalOrder()));
 
     private final Clock clock;
 
@@ -41,27 +44,26 @@ public class RepositoryScoringDecorator {
                 .map(SearchRepositoriesResponse::getItems)
                 .orElse(List.of());
 
-        double maxStars = repositories.stream()
-                .mapToDouble(repository -> Math.log1p(valueOrZero(repository.getStargazersCount())))
-                .max()
-                .orElse(0);
-        double maxForks = repositories.stream()
-                .mapToDouble(repository -> Math.log1p(valueOrZero(repository.getForksCount())))
-                .max()
-                .orElse(0);
+        RepositoryPopularityScorer popularityScorer = RepositoryPopularityScorer.from(
+                repositories,
+                clock,
+                RepositoryScoringWeights.of(
+                        properties.getScoring().getStarWeight(),
+                        properties.getScoring().getForkWeight(),
+                        properties.getScoring().getRecencyWeight()));
 
         return repositories.stream()
-                .map(repository -> toScoredRepository(repository, maxStars, maxForks))
-                .sorted(Comparator.comparing(ScoredRepository::getPopularityScore).reversed())
+                .map(repository -> toScoredRepository(repository, popularityScorer))
+                .sorted(POPULARITY_ORDER)
                 .toList();
     }
 
-    private ScoredRepository toScoredRepository(Repository repository, double maxStars, double maxForks) {
+    private ScoredRepository toScoredRepository(Repository repository, RepositoryPopularityScorer popularityScorer) {
         Integer stars = valueOrZero(repository.getStargazersCount());
         Integer forks = valueOrZero(repository.getForksCount());
         Integer watchers = valueOrZero(repository.getWatchersCount());
         Integer openIssues = valueOrZero(repository.getOpenIssuesCount());
-        Double popularityScore = calculatePopularityScore(repository, maxStars, maxForks);
+        Double popularityScore = popularityScorer.calculate(repository);
 
         return new ScoredRepository()
                 .id(repository.getId())
@@ -78,34 +80,6 @@ public class RepositoryScoringDecorator {
                 .openIssues(openIssues)
                 .popularityScore(popularityScore)
                 .owner(repository.getOwner());
-    }
-
-    private Double calculatePopularityScore(Repository repository, double maxStars, double maxForks) {
-        double starScore = normalizeLog(repository.getStargazersCount(), maxStars);
-        double forkScore = normalizeLog(repository.getForksCount(), maxForks);
-        double recencyScore = calculateRecencyScore(repository.getUpdatedAt());
-
-        double score = SCORE_SCALE * ((STAR_WEIGHT * starScore)
-                + (FORK_WEIGHT * forkScore)
-                + (RECENCY_WEIGHT * recencyScore));
-
-        return Math.round(score * 100.0) / 100.0;
-    }
-
-    private double normalizeLog(Integer value, double maxValue) {
-        if (maxValue == 0) {
-            return 0;
-        }
-        return Math.log1p(valueOrZero(value)) / maxValue;
-    }
-
-    private double calculateRecencyScore(OffsetDateTime updatedAt) {
-        if (updatedAt == null) {
-            return 0;
-        }
-
-        long daysSinceUpdate = Math.max(0, ChronoUnit.DAYS.between(updatedAt, OffsetDateTime.now(clock)));
-        return 1.0 / (1.0 + daysSinceUpdate);
     }
 
     private Integer valueOrZero(Integer value) {

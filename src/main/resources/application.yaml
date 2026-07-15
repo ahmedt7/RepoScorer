@@ -17,6 +17,9 @@ spring:
           GithubSearchReposClient:
             connectTimeout: 1000
             readTimeout: 5000
+  jackson:
+    default-property-inclusion: non_null
+
 github:
   api:
     baseUrl: https://api.github.com

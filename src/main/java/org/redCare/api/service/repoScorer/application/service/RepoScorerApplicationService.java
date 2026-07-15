@@ -9,6 +9,7 @@ import org.redCare.api.service.repoScorer.application.model.repoScorer.ScoredRep
 import org.redCare.api.service.repoScorer.application.model.repoScorer.SearchRepositoriesResponse;
 import org.redCare.api.service.repoScorer.application.useCase.SearchGithubReposQuery;
 import org.redCare.api.service.repoScorer.application.useCase.SearchGithubReposUseCase;
+import org.redCare.api.service.repoScorer.configuration.error.client.BadRequestException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -30,7 +31,7 @@ public class RepoScorerApplicationService {
      * popularity score.
      *
      * @param createdAfter inclusive lower bound for repository creation date
-     * @param language repository language qualifier; complex values are quoted
+     * @param language single repository language qualifier; complex values are quoted
      * @param perPage number of results requested per page
      * @param page requested result page
      * @return scored repositories and the GitHub total count
@@ -51,7 +52,16 @@ public class RepoScorerApplicationService {
     }
 
     private String formatLanguageQualifier(String language) {
+
         String trimmedLanguage = language.trim();
+        if ("null".equalsIgnoreCase(trimmedLanguage)) {
+            throw new BadRequestException("language parameter is required");
+        }
+
+        if (trimmedLanguage.contains(",")) {
+            throw new BadRequestException("language parameter must contain exactly one language");
+        }
+
         if (trimmedLanguage.matches("[A-Za-z0-9#+.-]+")) {
             return trimmedLanguage;
         }

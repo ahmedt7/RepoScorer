@@ -88,15 +88,6 @@ public class ServerErrorControllerAdvice {
     return new ResponseEntity<>(basicError, status);
   }
 
-  // 503
-  @ExceptionHandler(CallNotPermittedException.class)
-  public ResponseEntity<BasicError> handleCallNotPermittedException(CallNotPermittedException ex) {
-    log.warn(ex.getMessage(), ex);
-    HttpStatus status = HttpStatus.SERVICE_UNAVAILABLE;
-    BasicError basicError = basicError(status, new ServiceUnavailableException(ex));
-    return new ResponseEntity<>(basicError, status);
-  }
-
   // 504
   @ExceptionHandler(GatewayTimeoutException.class)
   public ResponseEntity<BasicError> handleGatewayTimeoutException(GatewayTimeoutException ex) {
@@ -104,22 +95,6 @@ public class ServerErrorControllerAdvice {
     HttpStatus status = HttpStatus.GATEWAY_TIMEOUT;
     BasicError basicError = basicError(status, ex);
     return new ResponseEntity<>(basicError, status);
-  }
-
-  // 504
-  @ExceptionHandler(RetryableException.class)
-  public ResponseEntity<BasicError> handleRetryableException(RetryableException ex) {
-    log.warn(ex.getMessage(), ex);
-    HttpStatus status = HttpStatus.GATEWAY_TIMEOUT;
-    BasicError basicError = basicError(status, new GatewayTimeoutException(ex));
-    return new ResponseEntity<>(basicError, status);
-  }
-
-  // 509
-  @ExceptionHandler(BulkheadFullException.class)
-  @ResponseStatus(HttpStatus.BANDWIDTH_LIMIT_EXCEEDED)
-  public void handleBulkheadFullException() {
-    // return standard 509 message
   }
 
   private BasicError basicError(HttpStatus status, Exception ex) {

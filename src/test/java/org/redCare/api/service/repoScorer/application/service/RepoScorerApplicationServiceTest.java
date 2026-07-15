@@ -1,6 +1,9 @@
 package org.redCare.api.service.repoScorer.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +19,7 @@ import org.redCare.api.service.repoScorer.application.model.repoScorer.ScoredRep
 import org.redCare.api.service.repoScorer.application.model.repoScorer.SearchRepositoriesResponse;
 import org.redCare.api.service.repoScorer.application.useCase.SearchGithubReposQuery;
 import org.redCare.api.service.repoScorer.application.useCase.SearchGithubReposUseCase;
+import org.redCare.api.service.repoScorer.configuration.error.client.BadRequestException;
 
 @ExtendWith(MockitoExtension.class)
 class RepoScorerApplicationServiceTest {
@@ -47,7 +51,7 @@ class RepoScorerApplicationServiceTest {
     @Test
     void quotesLanguageQualifierWhenLanguageContainsSpacesOrQuotes() {
         SearchRepositoriesResponse githubResponse = new SearchRepositoriesResponse();
-        when(searchGithubReposUseCase.handle(org.mockito.ArgumentMatchers.any())).thenReturn(githubResponse);
+        when(searchGithubReposUseCase.handle(any())).thenReturn(githubResponse);
 
         service.searchRepositories(LocalDate.of(2026, 2, 3), "C# \"Preview\"", 10, 1);
 
@@ -59,9 +63,27 @@ class RepoScorerApplicationServiceTest {
     }
 
     @Test
+    void rejectsNullStringLanguageQualifier() {
+        assertThatThrownBy(() -> service.searchRepositories(LocalDate.of(2026, 1, 1), "null", 10, 1))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("language parameter is required");
+
+        verify(searchGithubReposUseCase, never()).handle(any());
+    }
+
+    @Test
+    void rejectsCommaSeparatedLanguageQualifier() {
+        assertThatThrownBy(() -> service.searchRepositories(LocalDate.of(2026, 1, 1), "Java,Kotlin", 10, 1))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("language parameter must contain exactly one language");
+
+        verify(searchGithubReposUseCase, never()).handle(any());
+    }
+
+    @Test
     void returnsZeroTotalCountWhenGithubTotalCountIsMissing() {
         SearchRepositoriesResponse githubResponse = new SearchRepositoriesResponse();
-        when(searchGithubReposUseCase.handle(org.mockito.ArgumentMatchers.any())).thenReturn(githubResponse);
+        when(searchGithubReposUseCase.handle(any())).thenReturn(githubResponse);
 
         var result = service.searchRepositories(LocalDate.of(2026, 1, 1), "Kotlin", 5, 1);
 

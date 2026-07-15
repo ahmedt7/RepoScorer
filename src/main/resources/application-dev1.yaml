@@ -1,0 +1,5 @@
+management:
+  scoring:
+    fork-weight: ${FORK_WEIGHT:0.3}
+    star-weight: ${STAR_WEIGHT:0.7}
+    recency-weight: ${RECENCY_WEIGHT:0.2}

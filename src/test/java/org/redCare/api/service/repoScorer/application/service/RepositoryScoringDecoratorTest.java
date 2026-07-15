@@ -13,11 +13,12 @@ import org.redCare.api.service.repoScorer.application.model.repoScorer.Owner;
 import org.redCare.api.service.repoScorer.application.model.repoScorer.Repository;
 import org.redCare.api.service.repoScorer.application.model.repoScorer.ScoredRepository;
 import org.redCare.api.service.repoScorer.application.model.repoScorer.SearchRepositoriesResponse;
+import org.redCare.api.service.repoScorer.configuration.RepoScorerApplicationProperties;
 
 class RepositoryScoringDecoratorTest {
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-07-14T12:00:00Z"), ZoneOffset.UTC);
-    private final RepositoryScoringDecorator decorator = new RepositoryScoringDecorator(clock);
+    private final RepositoryScoringDecorator decorator = new RepositoryScoringDecorator(defaultProperties(), clock);
 
     @Test
     void decoratesRepositoriesWithScoresAndSortsByPopularityDescending() {
@@ -65,6 +66,36 @@ class RepositoryScoringDecoratorTest {
     void returnsEmptyListForNullResponseOrItems() {
         assertThat(decorator.decorate(null)).isEmpty();
         assertThat(decorator.decorate(new SearchRepositoriesResponse())).isEmpty();
+    }
+
+    @Test
+    void appliesTieBreakersAfterPopularityScore() {
+        RepositoryScoringDecorator recencyOnlyDecorator = new RepositoryScoringDecorator(recencyOnlyProperties(), clock);
+        Repository lowerStars = repository(3L, "lower-stars", 10, 2, 1, 0, 0);
+        Repository lowerForks = repository(1L, "lower-forks", 20, 1, 1, 0, 0);
+        Repository lowerId = repository(2L, "lower-id", 20, 5, 1, 0, 0);
+        Repository higherId = repository(4L, "higher-id", 20, 5, 1, 0, 0);
+        SearchRepositoriesResponse response = new SearchRepositoriesResponse()
+                .items(List.of(lowerStars, lowerForks, higherId, lowerId));
+
+        List<ScoredRepository> result = recencyOnlyDecorator.decorate(response);
+
+        assertThat(result).extracting(ScoredRepository::getName)
+                .containsExactly("lower-id", "higher-id", "lower-forks", "lower-stars");
+        assertThat(result).extracting(ScoredRepository::getPopularityScore)
+                .containsOnly(100.0);
+    }
+
+    private RepoScorerApplicationProperties defaultProperties() {
+        return new RepoScorerApplicationProperties();
+    }
+
+    private RepoScorerApplicationProperties recencyOnlyProperties() {
+        RepoScorerApplicationProperties properties = new RepoScorerApplicationProperties();
+        properties.getScoring().setStarWeight(0.0);
+        properties.getScoring().setForkWeight(0.0);
+        properties.getScoring().setRecencyWeight(1.0);
+        return properties;
     }
 
     private Repository repository(

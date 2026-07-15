@@ -67,89 +67,11 @@ public class ClientErrorControllerAdvice {
   }
 
   // 400
-  @ExceptionHandler(BindException.class)
-  public ResponseEntity<List<BasicError>> handleRequestBodyException(BindException ex) {
-    log.info(ex.getMessage(), ex);
-    List<BasicError> errors = new ArrayList<>();
-    for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
-      BasicError error = null;
-      if (fieldError.contains(TypeMismatchException.class)) {
-        TypeMismatchException tme = fieldError.unwrap(TypeMismatchException.class);
-        Class<?> requiredType = tme.getRequiredType();
-        if (tme.getCause() instanceof ConversionFailedException conversionFailedException) {
-          requiredType = (conversionFailedException.getTargetType()).getType();
-        }
-        if (requiredType != null) {
-          error = new BasicError();
-          setMessageForTypeMismatch(tme.getPropertyName(), error, requiredType);
-        }
-      }
-      errors.add(
-          Objects.requireNonNullElseGet(
-              error,
-              () ->
-                  new BasicError(
-                      "Validation failed for field '%s': %s"
-                          .formatted(fieldError.getField(), fieldError.getDefaultMessage()))));
-    }
-    return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
-  }
-
-  // 400
-  @ExceptionHandler(MissingServletRequestParameterException.class)
-  public ResponseEntity<List<BasicError>> handleMissingParams(
-      MissingServletRequestParameterException ex) {
-    log.info(ex.getMessage(), ex);
-    BasicError basicError =
-        new BasicError(String.format("%s parameter is missing", ex.getParameterName()));
-    return new ResponseEntity<>(List.of(basicError), HttpStatus.BAD_REQUEST);
-  }
-
-  // 400
   @ExceptionHandler(MissingRequestHeaderException.class)
   public ResponseEntity<List<BasicError>> handleMissingHeaders(MissingRequestHeaderException ex) {
     log.info(ex.getMessage(), ex);
     String message = String.format("%s header is missing", ex.getHeaderName());
     BasicError basicError = new BasicError(message);
-    return new ResponseEntity<>(List.of(basicError), HttpStatus.BAD_REQUEST);
-  }
-
-  // 400
-  @ExceptionHandler(HttpMessageNotReadableException.class)
-  public ResponseEntity<List<BasicError>> handleHttpMessageNotReadable(
-      HttpMessageNotReadableException ex) {
-    log.info(ex.getMessage(), ex);
-    String message = ex.getMessage();
-    if (ex.getCause() instanceof InvalidFormatException invalidFormatException
-        && invalidFormatException.getTargetType() != null
-        && invalidFormatException.getTargetType().isEnum()) {
-      message =
-          String.format(
-              "Unexpected value '%s' for the field: '%s'. The value must be one of: %s",
-              invalidFormatException.getValue(),
-              invalidFormatException
-                  .getPath()
-                  .get(invalidFormatException.getPath().size() - 1)
-                  .getFieldName(),
-              Arrays.toString(invalidFormatException.getTargetType().getEnumConstants()));
-    } else if (ex.getCause() instanceof ValueInstantiationException valueInstantiationException) {
-      message = valueInstantiationException.getCause().getMessage();
-    }
-    BasicError basicError = new BasicError(message);
-    return new ResponseEntity<>(List.of(basicError), HttpStatus.BAD_REQUEST);
-  }
-
-  // 400
-  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-  public ResponseEntity<List<BasicError>> handleMethodArgumentTypeMismatchException(
-      MethodArgumentTypeMismatchException ex) {
-    log.info(ex.getMessage(), ex);
-    BasicError basicError = new BasicError();
-    Class<?> requiredType = ex.getRequiredType();
-    if (ex.getCause() instanceof ConversionFailedException conversionFailedException) {
-      requiredType = conversionFailedException.getTargetType().getType();
-    }
-    setMessageForTypeMismatch(ex.getName(), basicError, requiredType);
     return new ResponseEntity<>(List.of(basicError), HttpStatus.BAD_REQUEST);
   }
 
@@ -244,24 +166,6 @@ public class ClientErrorControllerAdvice {
     HttpStatus status = ex.status();
     BasicError basicError = basicError(status, ex);
     return new ResponseEntity<>(basicError, status);
-  }
-
-  void setMessageForTypeMismatch(String paramName, BasicError basicError, Class<?> type) {
-    if (type != null) {
-      if (type.isEnum()) {
-        basicError.setMessage(
-            "The parameter %s must have a value among : %s"
-                .formatted(paramName, StringUtils.join(type.getEnumConstants(), ", ")));
-      } else {
-        basicError.setMessage(
-            "The parameter %s must be of type %s".formatted(paramName, type.getTypeName()));
-        if (type.getTypeName().equals("java.time.LocalDate")) {
-          basicError.setMessage(
-              "%s. Date should be a valid ISO 8601 10 letter date."
-                  .formatted(basicError.getMessage()));
-        }
-      }
-    }
   }
 
   private BasicError basicError(HttpStatus status, Exception ex) {
